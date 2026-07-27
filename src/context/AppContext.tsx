@@ -1,6 +1,6 @@
 "use client";
-import React, { createContext, useContext, useReducer, useEffect } from "react";
-import { AppState, Action, initialState, reducer, HistoryEntry } from "@/lib/store";
+import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback } from "react";
+import { AppState, Action, initialState, reducer, HistoryEntry, Screen } from "@/lib/store";
 
 interface AppContextType {
   state: AppState;
@@ -16,8 +16,6 @@ const CURRENT_VERSION = "3"; // v3 = AssignmentGroup model
 
 /**
  * Migrate or discard old-format history entries.
- * Old formats used `assignedTo`, `splitMode`, `assignedQty` on ReceiptItem.
- * New format uses `assignmentGroups`.
  */
 function migrateHistory(raw: unknown[]): HistoryEntry[] {
   const valid: HistoryEntry[] = [];
@@ -27,9 +25,8 @@ function migrateHistory(raw: unknown[]): HistoryEntry[] {
     const items = e.items as Record<string, unknown>[] | undefined;
     if (!items || !Array.isArray(items)) continue;
 
-    // Check if items have the new format (assignmentGroups)
     const hasNewFormat = items.every((item) => Array.isArray((item as Record<string, unknown>).assignmentGroups));
-    if (!hasNewFormat) continue; // skip incompatible old entries
+    if (!hasNewFormat) continue;
 
     valid.push(e as unknown as HistoryEntry);
   }
@@ -40,14 +37,18 @@ function migrateHistory(raw: unknown[]): HistoryEntry[] {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
+  // Flag: true when navigation was triggered by browser back/forward (popstate).
+  // This prevents pushState from firing again and creating duplicate history entries.
+  const isPopstateNav = useRef(false);
+
+  // Load history from localStorage
   useEffect(() => {
     try {
-      // Check data version — if outdated, clear storage
       const storedVersion = localStorage.getItem(VERSION_KEY);
       if (storedVersion !== CURRENT_VERSION) {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.setItem(VERSION_KEY, CURRENT_VERSION);
-        return; // no history to load
+        return;
       }
 
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -63,7 +64,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Silently ignore storage errors
     }
+
+    // Set initial browser history state
+    window.history.replaceState({ screen: "home" }, "", "");
   }, []);
+
+  // ── Push to browser history when screen changes (but NOT when triggered by back button) ──
+  useEffect(() => {
+    if (isPopstateNav.current) {
+      // This screen change came from popstate — don't push again
+      isPopstateNav.current = false;
+      return;
+    }
+    // Only push if the screen actually differs from what's already in history
+    const currentBrowserScreen = window.history.state?.screen;
+    if (currentBrowserScreen !== state.currentScreen) {
+      window.history.pushState({ screen: state.currentScreen }, "", "");
+    }
+  }, [state.currentScreen]);
+
+  // ── Listen for browser back/forward button (popstate) ──
+  const handlePopState = useCallback((e: PopStateEvent) => {
+    const targetScreen = e.state?.screen as Screen | undefined;
+    if (targetScreen) {
+      isPopstateNav.current = true; // Mark: don't re-push this navigation
+      dispatch({ type: "NAVIGATE", screen: targetScreen });
+    } else {
+      // No state (user went all the way back) — go home
+      isPopstateNav.current = true;
+      dispatch({ type: "NAVIGATE", screen: "home" });
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [handlePopState]);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
