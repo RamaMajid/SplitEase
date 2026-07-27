@@ -56,7 +56,10 @@ export default function SummaryScreen() {
   };
 
   const handleDone = () => {
-    if (!saved) dispatch({ type: "SAVE_TO_HISTORY" });
+    if (!saved) {
+      dispatch({ type: "SAVE_TO_HISTORY" });
+      setSaved(true);
+    }
     dispatch({ type: "NAVIGATE", screen: "home" });
   };
 
