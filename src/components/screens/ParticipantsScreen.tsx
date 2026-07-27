@@ -55,7 +55,7 @@ export default function ParticipantsScreen() {
     dispatch({ type: "NAVIGATE", screen: "item-assignment" });
   };
 
-  const quickAdd = ["Piw", "Mami", "A'a Zaky", "Mace", "154", "Ole"];
+  const quickAdd = ["Bude", "Syesye", "Ahmad BF", "Mace", "154", "Ole"];
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f9f9ff]">
