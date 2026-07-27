@@ -8,6 +8,18 @@ function generateId() {
   return Math.random().toString(36).slice(2, 9);
 }
 
+/** Format number with thousand separators (Indonesian: dot separator) */
+function formatNumber(n: number): string {
+  if (n === 0) return "";
+  return n.toLocaleString("id-ID");
+}
+
+/** Strip non-digit characters and parse to number */
+function parseFormattedNumber(s: string): number {
+  const digits = s.replace(/\D/g, "");
+  return parseInt(digits) || 0;
+}
+
 export default function ReceiptEditorScreen() {
   const { state, dispatch } = useApp();
   const [restaurantName, setRestaurantName] = useState(state.restaurantName || "");
@@ -17,13 +29,15 @@ export default function ReceiptEditorScreen() {
       : [{ id: generateId(), name: "", qty: 1, price: 0, assignmentGroups: [] }]
   );
 
+  // Raw string state for qty and price inputs (allows clearing the field)
+  const [rawQty, setRawQty] = useState<Record<string, string>>({});
+  const [rawPrice, setRawPrice] = useState<Record<string, string>>({});
+
   const updateItem = (id: string, field: keyof ReceiptItem, value: string | number) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
-        const updated = { ...item, [field]: value };
-        // Auto-calculate price when qty changes (keep per-unit base)
-        return updated;
+        return { ...item, [field]: value };
       })
     );
   };
@@ -37,6 +51,9 @@ export default function ReceiptEditorScreen() {
 
   const deleteItem = (id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
+    // Clean up raw state
+    setRawQty((prev) => { const n = { ...prev }; delete n[id]; return n; });
+    setRawPrice((prev) => { const n = { ...prev }; delete n[id]; return n; });
   };
 
   const handleSave = () => {
@@ -68,7 +85,7 @@ export default function ReceiptEditorScreen() {
         </div>
 
         {/* Header */}
-        <div className="grid grid-cols-[48px_1fr_90px_36px] gap-2 px-1 mb-2">
+        <div className="grid grid-cols-[48px_1fr_100px_36px] gap-2 px-1 mb-2">
           <span className="text-[11px] font-semibold text-on-surface-variant text-center">Qty</span>
           <span className="text-[11px] font-semibold text-on-surface-variant">Item</span>
           <span className="text-[11px] font-semibold text-on-surface-variant text-right">Harga Satuan</span>
@@ -77,48 +94,92 @@ export default function ReceiptEditorScreen() {
 
         {/* Items */}
         <div className="flex flex-col gap-2" id="items-list">
-          {items.map((item, idx) => (
-            <div
-              key={item.id}
-              className="grid grid-cols-[48px_1fr_90px_36px] gap-2 items-center bg-surface-container-lowest rounded-xl p-2 shadow-card animate-fade-in"
-            >
-              <input
-                type="number"
-                min={1}
-                value={item.qty}
-                onChange={(e) => updateItem(item.id, "qty", parseInt(e.target.value) || 1)}
-                className="w-full h-11 rounded-lg bg-surface-container-low border-none text-center text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
-                aria-label={`Qty item ${idx + 1}`}
-              />
-              <input
-                type="text"
-                value={item.name}
-                onChange={(e) => updateItem(item.id, "name", e.target.value)}
-                placeholder="Nama item..."
-                className="w-full h-11 rounded-lg bg-surface-container-low border-none px-3 text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
-                aria-label={`Nama item ${idx + 1}`}
-              />
-              <div className="relative">
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[12px] text-on-surface-variant font-semibold">Rp</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={item.price || ""}
-                  onChange={(e) => updateItem(item.id, "price", parseFloat(e.target.value) || 0)}
-                  placeholder="0"
-                  className="w-full h-11 rounded-lg bg-surface-container-low border-none pl-7 pr-1 text-right text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
-                  aria-label={`Harga item ${idx + 1}`}
-                />
-              </div>
-              <button
-                onClick={() => deleteItem(item.id)}
-                className="w-9 h-9 flex items-center justify-center rounded-full text-error/70 hover:text-error hover:bg-error-container/50 transition-colors"
-                aria-label="Hapus item"
+          {items.map((item, idx) => {
+            // Raw qty: allow empty while editing, show actual value when not editing
+            const qtyDisplay = rawQty[item.id] ?? item.qty.toString();
+            // Raw price: allow empty while editing, show formatted when not editing
+            const priceDisplay = rawPrice[item.id] ?? formatNumber(item.price);
+
+            return (
+              <div
+                key={item.id}
+                className="grid grid-cols-[48px_1fr_100px_36px] gap-2 items-center bg-surface-container-lowest rounded-xl p-2 shadow-card animate-fade-in"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>delete</span>
-              </button>
-            </div>
-          ))}
+                {/* Qty input — allows clearing */}
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={qtyDisplay}
+                  onFocus={() => {
+                    // Select all on focus for easy replacement
+                    setRawQty((prev) => ({ ...prev, [item.id]: "" }));
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setRawQty((prev) => ({ ...prev, [item.id]: val }));
+                    const num = parseInt(val) || 0;
+                    if (num > 0) updateItem(item.id, "qty", num);
+                  }}
+                  onBlur={() => {
+                    // Restore to at least 1 when leaving
+                    const num = parseInt(rawQty[item.id] || "") || 1;
+                    updateItem(item.id, "qty", num);
+                    setRawQty((prev) => { const n = { ...prev }; delete n[item.id]; return n; });
+                  }}
+                  className="w-full h-11 rounded-lg bg-surface-container-low border-none text-center text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                  aria-label={`Qty item ${idx + 1}`}
+                />
+
+                {/* Name input */}
+                <input
+                  type="text"
+                  value={item.name}
+                  onChange={(e) => updateItem(item.id, "name", e.target.value)}
+                  placeholder="Nama item..."
+                  className="w-full h-11 rounded-lg bg-surface-container-low border-none px-3 text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                  aria-label={`Nama item ${idx + 1}`}
+                />
+
+                {/* Price input — formatted with thousand separators */}
+                <div className="relative">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[12px] text-on-surface-variant font-semibold">Rp</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={priceDisplay}
+                    onFocus={() => {
+                      // Clear to let user type fresh
+                      setRawPrice((prev) => ({ ...prev, [item.id]: "" }));
+                    }}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "");
+                      const num = parseInt(digits) || 0;
+                      // Show formatted while typing
+                      setRawPrice((prev) => ({ ...prev, [item.id]: num > 0 ? num.toLocaleString("id-ID") : "" }));
+                      updateItem(item.id, "price", num);
+                    }}
+                    onBlur={() => {
+                      // Restore formatted display from actual value
+                      setRawPrice((prev) => { const n = { ...prev }; delete n[item.id]; return n; });
+                    }}
+                    placeholder="0"
+                    className="w-full h-11 rounded-lg bg-surface-container-low border-none pl-7 pr-1 text-right text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                    aria-label={`Harga item ${idx + 1}`}
+                  />
+                </div>
+
+                {/* Delete button */}
+                <button
+                  onClick={() => deleteItem(item.id)}
+                  className="w-9 h-9 flex items-center justify-center rounded-full text-error/70 hover:text-error hover:bg-error-container/50 transition-colors"
+                  aria-label="Hapus item"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 20 }}>delete</span>
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         {/* Add item button */}
@@ -134,7 +195,7 @@ export default function ReceiptEditorScreen() {
         {/* Summary */}
         <div className="mt-6 p-4 rounded-2xl bg-surface-container-low flex flex-col gap-2">
           <div className="flex justify-between text-[14px] text-on-surface-variant">
-            <span>Subtotal ({items.length} item)</span>
+            <span>Subtotal ({items.filter(i => i.name.trim() && i.price > 0).length} item)</span>
             <span className="font-semibold">{formatIDR(subtotal)}</span>
           </div>
           {state.taxService.taxEnabled && (
