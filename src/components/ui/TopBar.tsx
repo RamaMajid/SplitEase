@@ -1,23 +1,22 @@
 "use client";
 import { useApp } from "@/context/AppContext";
-import { Screen } from "@/lib/store";
 
 interface TopBarProps {
   title: string;
   onBack?: () => void;
-  backScreen?: Screen;
   rightIcon?: string;
   onRight?: () => void;
 }
 
-export default function TopBar({ title, onBack, backScreen, rightIcon, onRight }: TopBarProps) {
+export default function TopBar({ title, onBack, rightIcon, onRight }: TopBarProps) {
   const { dispatch } = useApp();
 
   const handleBack = () => {
     if (onBack) {
       onBack();
-    } else if (backScreen) {
-      dispatch({ type: "NAVIGATE", screen: backScreen });
+    } else {
+      // Use browser history to go back — follows actual navigation path
+      window.history.back();
     }
   };
 

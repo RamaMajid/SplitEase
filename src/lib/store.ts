@@ -91,6 +91,7 @@ export interface AppState {
   results: CalculationResult[];
   history: HistoryEntry[];
   uploadedImage: string | null;
+  fromHistory: boolean; // true when viewing a saved history entry
 }
 
 export type Screen =
@@ -122,6 +123,7 @@ export const initialState: AppState = {
   results: [],
   history: [],
   uploadedImage: null,
+  fromHistory: false,
 };
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -291,13 +293,13 @@ export function reducer(state: AppState, action: Action): AppState {
     }
 
     case "LOAD_FROM_HISTORY":
-      return { ...state, restaurantName: action.entry.restaurantName, receiptDate: action.entry.date, items: action.entry.items, taxService: action.entry.taxService, results: action.entry.results, currentScreen: "summary" };
+      return { ...state, restaurantName: action.entry.restaurantName, receiptDate: action.entry.date, items: action.entry.items, taxService: action.entry.taxService, results: action.entry.results, currentScreen: "summary", fromHistory: true };
 
     case "LOAD_HISTORY": return { ...state, history: action.history };
     case "SET_IMAGE": return { ...state, uploadedImage: action.image };
 
     case "RESET_SESSION":
-      return { ...state, restaurantName: "", receiptDate: "", items: [], participants: [], results: [], uploadedImage: null, taxService: { taxEnabled: true, taxRate: 10, serviceEnabled: false, serviceRate: 5 }, currentScreen: "home" };
+      return { ...state, restaurantName: "", receiptDate: "", items: [], participants: [], results: [], uploadedImage: null, taxService: { taxEnabled: true, taxRate: 10, serviceEnabled: false, serviceRate: 5 }, currentScreen: "home", fromHistory: false };
 
     default: return state;
   }

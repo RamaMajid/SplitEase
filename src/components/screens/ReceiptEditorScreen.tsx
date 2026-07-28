@@ -67,7 +67,7 @@ export default function ReceiptEditorScreen() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f9f9ff]">
-      <TopBar title="Edit Item" backScreen="receipt-preview" />
+      <TopBar title="Edit Item" />
 
       <div className="flex-1 overflow-y-auto px-4 py-3 pb-36">
         {/* Restaurant name */}

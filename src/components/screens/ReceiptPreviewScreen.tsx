@@ -13,7 +13,7 @@ export default function ReceiptPreviewScreen() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f9f9ff]">
-      <TopBar title="Konfirmasi Detail" backScreen="scanner" />
+      <TopBar title="Konfirmasi Detail" />
 
       <main className="flex-1 px-4 pb-32 flex flex-col items-center pt-4">
         {/* Receipt Card */}

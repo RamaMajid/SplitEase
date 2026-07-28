@@ -12,7 +12,7 @@ function getInitials(name: string) {
 export default function SummaryScreen() {
   const { state, dispatch } = useApp();
   const [copied, setCopied] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(state.fromHistory); // Already "saved" if from history
 
   const grandTotal = state.results.reduce((sum, r) => sum + r.total, 0);
   const totalTax = state.results.reduce((sum, r) => sum + r.tax, 0);
@@ -49,23 +49,29 @@ export default function SummaryScreen() {
   };
 
   const handleSave = () => {
-    if (!saved) {
+    if (!saved && !state.fromHistory) {
       dispatch({ type: "SAVE_TO_HISTORY" });
       setSaved(true);
     }
   };
 
   const handleDone = () => {
-    if (!saved) {
+    // Only save if this is a new calculation (not viewing from history)
+    if (!saved && !state.fromHistory) {
       dispatch({ type: "SAVE_TO_HISTORY" });
       setSaved(true);
     }
     dispatch({ type: "NAVIGATE", screen: "home" });
   };
 
+  // When opened from history, back goes to home; otherwise browser back
+  const handleBack = state.fromHistory
+    ? () => dispatch({ type: "NAVIGATE", screen: "home" })
+    : undefined;
+
   return (
     <div className="flex flex-col min-h-screen bg-[#f9f9ff]">
-      <TopBar title="Ringkasan Split" backScreen="tax-service" />
+      <TopBar title="Ringkasan Split" onBack={handleBack} />
 
       <main className="flex-1 px-4 pt-4 pb-32 space-y-4">
         {/* Grand total card */}
@@ -90,7 +96,7 @@ export default function SummaryScreen() {
         </div>
 
         {/* Action buttons */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className={`grid ${state.fromHistory ? "grid-cols-2" : "grid-cols-3"} gap-3`}>
           <button
             onClick={handleShare}
             className="flex flex-col items-center justify-center gap-2 p-4 bg-surface-container-highest text-on-surface rounded-[16px] hover:bg-surface-container-high active:scale-95 transition-all card-interactive"
@@ -107,16 +113,18 @@ export default function SummaryScreen() {
             <span className="material-symbols-outlined text-primary">{copied ? "check" : "content_copy"}</span>
             <span className="text-[12px] font-semibold">{copied ? "Tersalin!" : "Salin"}</span>
           </button>
-          <button
-            onClick={handleSave}
-            className={`flex flex-col items-center justify-center gap-2 p-4 rounded-[16px] hover:opacity-90 active:scale-95 transition-all card-interactive ${
-              saved ? "bg-secondary-container text-on-secondary-container" : "bg-surface-container-highest text-on-surface"
-            }`}
-            id="save-btn"
-          >
-            <span className="material-symbols-outlined text-primary">{saved ? "check_circle" : "save"}</span>
-            <span className="text-[12px] font-semibold">{saved ? "Tersimpan" : "Simpan"}</span>
-          </button>
+          {!state.fromHistory && (
+            <button
+              onClick={handleSave}
+              className={`flex flex-col items-center justify-center gap-2 p-4 rounded-[16px] hover:opacity-90 active:scale-95 transition-all card-interactive ${
+                saved ? "bg-secondary-container text-on-secondary-container" : "bg-surface-container-highest text-on-surface"
+              }`}
+              id="save-btn"
+            >
+              <span className="material-symbols-outlined text-primary">{saved ? "check_circle" : "save"}</span>
+              <span className="text-[12px] font-semibold">{saved ? "Tersimpan" : "Simpan"}</span>
+            </button>
+          )}
         </div>
 
         {/* Per-person cards */}

@@ -59,7 +59,7 @@ export default function ParticipantsScreen() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f9f9ff]">
-      <TopBar title="Siapa yang Ikut?" backScreen="receipt-editor" />
+      <TopBar title="Siapa yang Ikut?" />
       <StepProgress steps={steps} currentStep={2} />
 
       <main className="flex-1 px-4 py-4 pb-36">

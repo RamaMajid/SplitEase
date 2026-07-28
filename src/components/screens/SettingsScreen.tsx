@@ -119,7 +119,7 @@ export default function SettingsScreen() {
             {
               icon: "info",
               title: "Tentang SplitEase",
-              subtitle: "Versi 1.0.0",
+              subtitle: "Versi 1.0.1",
             },
             {
               icon: "star",
@@ -135,7 +135,7 @@ export default function SettingsScreen() {
           <div className="text-center">
             <p className="font-manrope font-bold text-[16px] text-primary">SplitEase</p>
             <p className="text-[12px] text-on-surface-variant">Smart Receipt Splitter</p>
-            <p className="text-[11px] text-on-surface-variant/60 mt-1">v1.0.0 • Dibuat dengan kondisi lapar</p>
+            <p className="text-[11px] text-on-surface-variant/60 mt-1">v1.0.1 • Dibuat dengan kondisi lapar</p>
           </div>
         </div>
       </main>

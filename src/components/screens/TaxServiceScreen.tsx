@@ -35,7 +35,7 @@ export default function TaxServiceScreen() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f9f9ff]">
-      <TopBar title="Pajak & Service" backScreen="item-assignment" />
+      <TopBar title="Pajak & Service" />
       <StepProgress steps={steps} currentStep={4} />
 
       <main className="flex-1 px-4 py-4 pb-36 space-y-4">

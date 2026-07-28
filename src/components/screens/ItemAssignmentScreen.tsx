@@ -28,7 +28,7 @@ export default function ItemAssignmentScreen() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f9f9ff]">
-      <TopBar title="Assign Item" backScreen="participants" />
+      <TopBar title="Assign Item" />
       <StepProgress steps={steps} currentStep={3} />
 
       {/* Legend */}
