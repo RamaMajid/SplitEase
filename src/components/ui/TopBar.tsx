@@ -15,8 +15,8 @@ export default function TopBar({ title, onBack, rightIcon, onRight }: TopBarProp
     if (onBack) {
       onBack();
     } else {
-      // Use browser history to go back — follows actual navigation path
-      window.history.back();
+      // Use internal screen stack — always goes to the actual previous screen
+      dispatch({ type: "GO_BACK" });
     }
   };
 

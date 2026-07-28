@@ -1,6 +1,6 @@
 "use client";
-import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback } from "react";
-import { AppState, Action, initialState, reducer, HistoryEntry, Screen } from "@/lib/store";
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from "react";
+import { AppState, Action, initialState, reducer, HistoryEntry } from "@/lib/store";
 
 interface AppContextType {
   state: AppState;
@@ -37,10 +37,6 @@ function migrateHistory(raw: unknown[]): HistoryEntry[] {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  // Flag: true when navigation was triggered by browser back/forward (popstate).
-  // This prevents pushState from firing again and creating duplicate history entries.
-  const isPopstateNav = useRef(false);
-
   // Load history from localStorage
   useEffect(() => {
     try {
@@ -64,36 +60,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Silently ignore storage errors
     }
-
-    // Set initial browser history state
-    window.history.replaceState({ screen: "home" }, "", "");
   }, []);
 
-  // ── Push to browser history when screen changes (but NOT when triggered by back button) ──
+  // ── Browser back button support ──
+  // Push a dummy entry so pressing back triggers popstate instead of leaving the app
   useEffect(() => {
-    if (isPopstateNav.current) {
-      // This screen change came from popstate — don't push again
-      isPopstateNav.current = false;
-      return;
-    }
-    // Only push if the screen actually differs from what's already in history
-    const currentBrowserScreen = window.history.state?.screen;
-    if (currentBrowserScreen !== state.currentScreen) {
-      window.history.pushState({ screen: state.currentScreen }, "", "");
-    }
-  }, [state.currentScreen]);
+    // Push an initial entry so there's always something to go back to
+    window.history.replaceState({ splitease: true }, "", "");
+    window.history.pushState({ splitease: true }, "", "");
+  }, []);
 
-  // ── Listen for browser back/forward button (popstate) ──
-  const handlePopState = useCallback((e: PopStateEvent) => {
-    const targetScreen = e.state?.screen as Screen | undefined;
-    if (targetScreen) {
-      isPopstateNav.current = true; // Mark: don't re-push this navigation
-      dispatch({ type: "NAVIGATE", screen: targetScreen });
-    } else {
-      // No state (user went all the way back) — go home
-      isPopstateNav.current = true;
-      dispatch({ type: "NAVIGATE", screen: "home" });
-    }
+  // Listen for phone/browser back button
+  const handlePopState = useCallback(() => {
+    // When back is pressed, use our internal screen stack
+    dispatch({ type: "GO_BACK" });
+    // Re-push so the next back press also works (prevents leaving the app)
+    window.history.pushState({ splitease: true }, "", "");
   }, []);
 
   useEffect(() => {

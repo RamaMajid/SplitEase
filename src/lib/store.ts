@@ -83,6 +83,7 @@ export interface HistoryEntry {
 // ─── App State ────────────────────────────────────────────────────────────────
 export interface AppState {
   currentScreen: Screen;
+  screenStack: Screen[];  // navigation history stack for back button
   restaurantName: string;
   receiptDate: string;
   items: ReceiptItem[];
@@ -115,6 +116,7 @@ export const PARTICIPANT_COLORS = [
 // ─── Initial State ────────────────────────────────────────────────────────────
 export const initialState: AppState = {
   currentScreen: "home",
+  screenStack: [],
   restaurantName: "",
   receiptDate: "",
   items: [],
@@ -131,6 +133,7 @@ function genId() { return Math.random().toString(36).slice(2, 9); }
 
 export type Action =
   | { type: "NAVIGATE"; screen: Screen }
+  | { type: "GO_BACK" }  // pop from screenStack
   | { type: "SET_RESTAURANT"; name: string; date: string }
   | { type: "SET_ITEMS"; items: ReceiptItem[] }
   | { type: "ADD_ITEM"; item: ReceiptItem }
@@ -141,10 +144,10 @@ export type Action =
   | { type: "REMOVE_PARTICIPANT"; id: string }
   | { type: "RENAME_PARTICIPANT"; id: string; name: string }
   // Group-based assignment
-  | { type: "ASSIGN_SOLO"; itemId: string; participantId: string }         // add as new solo group
-  | { type: "UNASSIGN"; itemId: string; participantId: string }            // remove from groups
-  | { type: "MERGE_INTO_GROUP"; itemId: string; targetGroupId: string; participantId: string } // join existing group
-  | { type: "SPLIT_FROM_GROUP"; itemId: string; participantId: string }   // leave group → solo
+  | { type: "ASSIGN_SOLO"; itemId: string; participantId: string }
+  | { type: "UNASSIGN"; itemId: string; participantId: string }
+  | { type: "MERGE_INTO_GROUP"; itemId: string; targetGroupId: string; participantId: string }
+  | { type: "SPLIT_FROM_GROUP"; itemId: string; participantId: string }
   | { type: "SET_GROUP_QTY"; itemId: string; groupId: string; qty: number }
   // Misc
   | { type: "SET_TAX_SERVICE"; config: TaxServiceConfig }
@@ -159,7 +162,24 @@ export type Action =
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
-    case "NAVIGATE": return { ...state, currentScreen: action.screen };
+    case "NAVIGATE": {
+      // Push current screen to stack (so GO_BACK can return to it)
+      // Don't push if navigating to the same screen
+      if (action.screen === state.currentScreen) return state;
+      return {
+        ...state,
+        currentScreen: action.screen,
+        screenStack: [...state.screenStack, state.currentScreen],
+      };
+    }
+    case "GO_BACK": {
+      if (state.screenStack.length === 0) {
+        return { ...state, currentScreen: "home" };
+      }
+      const newStack = [...state.screenStack];
+      const prevScreen = newStack.pop()!;
+      return { ...state, currentScreen: prevScreen, screenStack: newStack };
+    }
     case "SET_RESTAURANT": return { ...state, restaurantName: action.name, receiptDate: action.date };
     case "SET_ITEMS": return { ...state, items: action.items };
     case "ADD_ITEM": return { ...state, items: [...state.items, action.item] };
@@ -293,13 +313,13 @@ export function reducer(state: AppState, action: Action): AppState {
     }
 
     case "LOAD_FROM_HISTORY":
-      return { ...state, restaurantName: action.entry.restaurantName, receiptDate: action.entry.date, items: action.entry.items, taxService: action.entry.taxService, results: action.entry.results, currentScreen: "summary", fromHistory: true };
+      return { ...state, restaurantName: action.entry.restaurantName, receiptDate: action.entry.date, items: action.entry.items, taxService: action.entry.taxService, results: action.entry.results, currentScreen: "summary", fromHistory: true, screenStack: ["home"] };
 
     case "LOAD_HISTORY": return { ...state, history: action.history };
     case "SET_IMAGE": return { ...state, uploadedImage: action.image };
 
     case "RESET_SESSION":
-      return { ...state, restaurantName: "", receiptDate: "", items: [], participants: [], results: [], uploadedImage: null, taxService: { taxEnabled: true, taxRate: 10, serviceEnabled: false, serviceRate: 5 }, currentScreen: "home", fromHistory: false };
+      return { ...state, restaurantName: "", receiptDate: "", items: [], participants: [], results: [], uploadedImage: null, taxService: { taxEnabled: true, taxRate: 10, serviceEnabled: false, serviceRate: 5 }, currentScreen: "home", fromHistory: false, screenStack: [] };
 
     default: return state;
   }
